@@ -3,4 +3,8 @@ const defaultApiUrl = import.meta.env.PROD
   ? "https://krishnasoftwarebackend.vercel.app/api"
   : "http://localhost:5000/api";
 
-export const API_BASE_URL = (configuredApiUrl || defaultApiUrl).replace(/\/+$/, "");
+const configuredBaseUrl = (configuredApiUrl || defaultApiUrl).replace(/\/+$/, "");
+
+export const API_BASE_URL = /\/api$/i.test(configuredBaseUrl)
+  ? configuredBaseUrl
+  : `${configuredBaseUrl}/api`;
