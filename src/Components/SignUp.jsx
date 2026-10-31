@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { API_BASE_URL } from "../utils/api.js";
 
 const BG = "https://i.pinimg.com/736x/0f/5c/06/0f5c067d1e696b6c024ac30da1d336ef.jpg";
 
@@ -23,7 +24,7 @@ export default function SignUp() {
     setIsLoading(true);
     setMessage("");
     try {
-      const res = await fetch("http://localhost:5000/api/auth/signup", {
+      const res = await fetch(`${API_BASE_URL}/auth/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, password }),
