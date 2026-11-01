@@ -1,27 +1,30 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowUpDown,
+  Archive,
+  BookOpen,
   FileImage,
+  FileScan,
   FileText,
   FolderOpen,
+  LoaderCircle,
+  Music,
+  FileType2,
   Search,
-  Share2,
-  ShieldCheck,
   SlidersHorizontal,
 } from "lucide-react";
 import { getDocuments } from "../utils/documentStore";
 
-const stats = [
-  { label: "Documents Uploaded", value: "0", icon: FileText, color: "blue" },
-  { label: "Shared With Others", value: "0", icon: Share2, color: "emerald" },
-  { label: "Pending Reviews", value: "0", icon: ShieldCheck, color: "amber" },
+const STAT_DEFINITIONS = [
+  { label: "Documents Uploaded", collection: null,                    icon: FileText,  color: "bg-blue-50 text-blue-700" },
+  { label: "General Documents",  collection: "Documents",             icon: FolderOpen, color: "bg-emerald-50 text-emerald-700" },
+  { label: "Images & Photographs", collection: "Images & Photographs", icon: FileImage,  color: "bg-violet-50 text-violet-700" },
+  { label: "Scanned Documents",  collection: "Scanned Documents",     icon: FileScan,  color: "bg-cyan-50 text-cyan-700" },
+  { label: "PDF & Office Files", collection: "PDF & Office Files",    icon: FileType2, color: "bg-orange-50 text-orange-700" },
+  { label: "Books & Journals",   collection: "Books & Journals",      icon: BookOpen,  color: "bg-amber-50 text-amber-700" },
+  { label: "Audio & Video",      collection: "Audio & Video",         icon: Music,     color: "bg-pink-50 text-pink-700" },
+  { label: "Archives & Manuscripts", collection: "Archives & Manuscripts", icon: Archive, color: "bg-slate-100 text-slate-700" },
 ];
-
-const statColors = {
-  blue: "bg-blue-50 text-blue-700",
-  emerald: "bg-emerald-50 text-emerald-700",
-  amber: "bg-amber-50 text-amber-700",
-};
 
 const getUserName = () => {
   try {
@@ -47,6 +50,7 @@ const Home = () => {
   const userName = getUserName();
   const [documents, setDocuments] = useState([]);
   const [documentsError, setDocumentsError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [collectionFilter, setCollectionFilter] = useState("all");
   const [sortOrder, setSortOrder] = useState("newest");
@@ -64,6 +68,8 @@ const Home = () => {
         if (active) {
           setDocumentsError(error instanceof Error ? error.message : "Could not load saved documents.");
         }
+      } finally {
+        if (active) setIsLoading(false);
       }
     };
 
@@ -122,29 +128,49 @@ const Home = () => {
         </div>
       </header>
 
-      <section aria-label="Document statistics" className="grid gap-4 sm:grid-cols-3">
-        {stats.map(({ label, value, icon: Icon, color }) => {
-          const currentValue = label === "Documents Uploaded"
-            ? documents.length
-            : label === "Shared With Others"
-              ? documents.filter((document) => document.accessEmails?.length > 0).length
-              : value;
-
-          return (
-            <article
-              key={label}
-              className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm"
-            >
-              <div>
-                <p className="text-sm font-medium text-slate-500">{label}</p>
-                <p className="mt-2 text-3xl font-bold tracking-tight text-[#02154C]">{currentValue}</p>
-              </div>
-              <div className={`flex size-12 items-center justify-center rounded-xl ${statColors[color]}`}>
-                <Icon size={22} strokeWidth={1.8} />
-              </div>
-            </article>
-          );
-        })}
+      <section aria-label="Document statistics" className="flex flex-col items-center gap-4">
+        <div className="flex justify-center gap-4 w-full">
+          {STAT_DEFINITIONS.slice(0, 5).map(({ label, collection, icon: Icon, color }) => {
+            const count = collection === null
+              ? documents.length
+              : documents.filter((d) => d.collection === collection).length;
+            return (
+              <article
+                key={label}
+                className="flex flex-1 max-w-[200px] flex-col items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-5 shadow-sm text-center"
+              >
+                <div className={`flex size-11 items-center justify-center rounded-xl ${color}`}>
+                  <Icon size={21} strokeWidth={1.8} />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold tracking-tight text-[#02154C]">{count}</p>
+                  <p className="mt-0.5 text-xs font-medium text-slate-500 leading-tight">{label}</p>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+        <div className="flex justify-center gap-4">
+          {STAT_DEFINITIONS.slice(5).map(({ label, collection, icon: Icon, color }) => {
+            const count = collection === null
+              ? documents.length
+              : documents.filter((d) => d.collection === collection).length;
+            return (
+              <article
+                key={label}
+                className="flex w-[300px] flex-col items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-5 shadow-sm text-center"
+              >
+                <div className={`flex size-11 items-center justify-center rounded-xl ${color}`}>
+                  <Icon size={21} strokeWidth={1.8} />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold tracking-tight text-[#02154C]">{count}</p>
+                  <p className="mt-0.5 text-xs font-medium text-slate-500 leading-tight">{label}</p>
+                </div>
+              </article>
+            );
+          })}
+        </div>
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
@@ -203,6 +229,11 @@ const Home = () => {
           <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {documentsError}
           </p>
+        ) : isLoading ? (
+          <div className="flex min-h-44 items-center justify-center gap-2 text-sm text-slate-500">
+            <LoaderCircle size={18} className="animate-spin" />
+            Loading documents...
+          </div>
         ) : filteredDocuments.length ? (
           <ul className="divide-y divide-slate-100">
             {filteredDocuments.slice(0, 8).map((document) => (
