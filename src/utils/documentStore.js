@@ -77,6 +77,11 @@ export const saveDocument = async (document, file) => {
   return data.document;
 };
 
+export const deleteDocument = async (documentId) => {
+  await request(`/documents/${encodeURIComponent(documentId)}`, { method: "DELETE" });
+  window.dispatchEvent(new Event("kdms:documents-changed"));
+};
+
 export const openDocumentFile = async (documentId) => {
   const newTab = window.open("about:blank", "_blank");
   if (!newTab) {

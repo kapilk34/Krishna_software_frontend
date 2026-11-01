@@ -5,8 +5,9 @@ import {
   FolderOpen,
   LoaderCircle,
   Search,
+  Trash2,
 } from "lucide-react";
-import { getDocuments, openDocumentFile } from "../utils/documentStore";
+import { deleteDocument, getDocuments, openDocumentFile } from "../utils/documentStore";
 
 const formatFileSize = (size) => {
   if (!Number.isFinite(size) || size < 0) return "";
@@ -28,6 +29,7 @@ const Settings = () => {
   const [sortOrder, setSortOrder] = useState("newest");
   const [isLoading, setIsLoading] = useState(true);
   const [openingId, setOpeningId] = useState("");
+  const [deletingId, setDeletingId] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -98,7 +100,7 @@ const Settings = () => {
   }, [documents, debouncedSearch, collectionFilter, sortOrder]);
 
   const handleOpenFile = async (document) => {
-    if (openingId) return;
+    if (openingId || deletingId) return;
     setOpeningId(document.id);
     setError("");
     try {
@@ -107,6 +109,23 @@ const Settings = () => {
       setError(openError instanceof Error ? openError.message : "Could not open this file.");
     } finally {
       setOpeningId("");
+    }
+  };
+
+  const handleDeleteFile = async (document) => {
+    if (openingId || deletingId) return;
+    const fileName = document.fileName || document.title;
+    if (!window.confirm(`Permanently delete "${fileName}" from your document store?`)) return;
+
+    setDeletingId(document.id);
+    setError("");
+    try {
+      await deleteDocument(document.id);
+      setDocuments((currentDocuments) => currentDocuments.filter((item) => item.id !== document.id));
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "Could not delete this file.");
+    } finally {
+      setDeletingId("");
     }
   };
 
@@ -191,42 +210,78 @@ const Settings = () => {
             Loading your files...
           </div>
         ) : filteredDocuments.length ? (
-          <ul className="divide-y divide-slate-100">
-            {filteredDocuments.map((document) => (
-              <li key={document.id} className="py-2 first:pt-0 last:pb-0">
-                <button
-                  type="button"
-                  onClick={() => handleOpenFile(document)}
-                  disabled={Boolean(openingId)}
-                  className="group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-slate-50 disabled:cursor-wait disabled:opacity-70"
-                  aria-label={`Open ${document.fileName || document.title} in a new tab`}
-                >
-                  <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#1A468B]">
-                    {openingId === document.id
-                      ? <LoaderCircle size={20} className="animate-spin" />
-                      : <FileText size={20} strokeWidth={1.7} />}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold text-slate-700 group-hover:text-[#1A468B]">
-                      {document.title}
-                    </span>
-                    <span className="mt-1 block truncate text-xs text-slate-400">
-                      {[document.collection, document.type, document.category, document.fileName]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </span>
-                  </span>
-                  <span className="hidden shrink-0 text-right sm:block">
-                    <span className="block text-xs text-slate-500">{formatFileSize(document.fileSize)}</span>
-                    <time className="mt-1 block text-xs text-slate-400" dateTime={document.savedAt}>
-                      {formatDate(document.savedAt)}
-                    </time>
-                  </span>
-                  <span className="sr-only">Opens in a new tab</span>
-                </button>
-              </li>
-            ))}
-          </ul>
+          <div className="max-h-[60vh] overflow-auto rounded-xl border border-slate-200">
+            <table className="w-full min-w-[640px] table-fixed border-collapse text-left">
+              <thead className="sticky top-0 z-10 bg-slate-50 shadow-[0_1px_0_0_rgb(226_232_240)]">
+                <tr>
+                  <th scope="col" className="w-auto px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    File
+                  </th>
+                  <th scope="col" className="w-28 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Size
+                  </th>
+                  <th scope="col" className="w-32 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Date added
+                  </th>
+                  <th scope="col" className="w-20 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {filteredDocuments.map((document) => (
+                  <tr key={document.id} className="hover:bg-slate-50">
+                    <td className="px-3 py-2">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenFile(document)}
+                        disabled={Boolean(openingId || deletingId)}
+                        className="group flex w-full min-w-0 items-center gap-3 rounded-xl px-1 py-2 text-left transition disabled:cursor-wait disabled:opacity-70"
+                        aria-label={`Open ${document.fileName || document.title} in a new tab`}
+                      >
+                        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#1A468B]">
+                          {openingId === document.id
+                            ? <LoaderCircle size={20} className="animate-spin" />
+                            : <FileText size={20} strokeWidth={1.7} />}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-semibold text-slate-700 group-hover:text-[#1A468B]">
+                            {document.title}
+                          </span>
+                          <span className="mt-1 block truncate text-xs text-slate-400">
+                            {[document.collection, document.type, document.category, document.fileName]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </span>
+                        </span>
+                        <span className="sr-only">Opens in a new tab</span>
+                      </button>
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-slate-500">
+                      {formatFileSize(document.fileSize)}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-slate-500">
+                      <time dateTime={document.savedAt}>{formatDate(document.savedAt)}</time>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteFile(document)}
+                        disabled={Boolean(openingId || deletingId)}
+                        className="inline-flex size-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 disabled:cursor-wait disabled:opacity-50"
+                        aria-label={`Delete ${document.fileName || document.title}`}
+                        title="Delete file"
+                      >
+                        {deletingId === document.id
+                          ? <LoaderCircle size={18} className="animate-spin" />
+                          : <Trash2 size={18} strokeWidth={1.8} />}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : (
           <div className="flex min-h-48 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-5 py-8 text-center">
             <span className="mb-3 flex size-11 items-center justify-center rounded-xl bg-white text-slate-400 shadow-sm">
